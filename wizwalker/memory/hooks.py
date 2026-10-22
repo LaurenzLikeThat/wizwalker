@@ -613,6 +613,23 @@ class User32GetClassInfoBaseHook(AutoBotBaseHook):
             self._autobot_bytes_offset = 0
 
 
+# Thanks to peechez for this class
+class DanceGameMovesHook(SimpleHook):
+    pattern = rb"\x48\x8B\xF8\x48\x39\x70\x10"
+    instruction_length = 7
+    exports = [("dance_game_moves", 8)]
+    noops = 2
+
+    async def bytecode_generator(self, packed_exports):
+        return (
+                b"\x48\x8B\xF8"
+                b"\x48\x8B\x00"
+                b"\x48\xA3" + packed_exports[0][1] +
+                b"\x48\x8B\xC7"
+                b"\x48\x39\x70\x10"
+        )
+
+
 class MouselessCursorMoveHook(User32GetClassInfoBaseHook):
     def __init__(self, memory_handler, hook_cache = {}):
         super().__init__(memory_handler, hook_cache=hook_cache)

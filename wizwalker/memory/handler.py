@@ -2,6 +2,7 @@ import asyncio
 import struct
 from typing import Any
 import warnings
+import traceback
 
 import pymem
 import pymem.exception
@@ -20,6 +21,7 @@ from .hooks import (
     RenderContextHook,
     MovementTeleportHook,
     DropsToggleHook,
+    DanceGameMovesHook,
     MemoryHook
 )
 from .memory_reader import MemoryReader, Primitive
@@ -55,6 +57,7 @@ class HookHandler(MemoryReader):
         self._base_addrs = {}
 
         self._hook_cache = {}
+        self._dance_moves_transtable = str.maketrans("abcd", "WDSA")
 
     async def _get_open_autobot_address(self, size: int) -> int:
         if self._autobot_pos + size > self.AUTOBOT_SIZE:
@@ -572,6 +575,71 @@ class HookHandler(MemoryReader):
             raise HookNotActive("Drops toggle")
 
         return addr
+
+    async def activate_dance_game_moves_hook(
+        self, *, wait_for_ready: bool = False, timeout: float = None
+    ):
+        if self._check_if_hook_active(DanceGameMovesHook):
+            raise HookAlreadyActivated("DanceGameMovesHook")
+
+        await self._check_for_autobot()
+
+        dance_game_hook = DanceGameMovesHook(self)
+        await dance_game_hook.hook()
+
+        self._active_hooks[DanceGameMovesHook] = dance_game_hook
+        #self._active_hooks.append(dance_game_hook)
+        self._base_addrs["dance_game_moves"] = dance_game_hook.dance_game_moves
+
+        if wait_for_ready:
+            await self._wait_for_value(dance_game_hook.dance_game_moves, timeout)
+
+    async def deactivate_dance_game_moves_hook(self):
+        if not self._check_if_hook_active(DanceGameMovesHook):
+            raise HookNotActive("DanceGameMovesHook")
+
+        dance_game_hook = self._get_hook_by_type(DanceGameMovesHook)
+        #self._active_hooks.remove(dance_game_hook)
+        del self._active_hooks[DanceGameMovesHook]
+        await dance_game_hook.unhook()
+
+        del self._base_addrs["dance_game_moves"]
+
+    async def attempt_activate_dance_hook(self, sleep_time: float = 0.1):
+        # Attempts to activate dance hook, in a try block in case it's already off for this client
+        if not self.client.dance_hook_status:
+            try:
+                await self.activate_dance_game_moves_hook()
+            except:
+                logger.debug("failed to activate dance hook")
+                logger.debug(traceback.print_exc())
+                pass
+
+            self.client.dance_hook_status = True
+        await asyncio.sleep(sleep_time)
+
+    async def attempt_deactivate_dance_hook(self, sleep_time: float = 0.1):
+        # Attempts to deactivate dance hook, in a try block in case it's already off for this client
+        if self.client.dance_hook_status:
+            try:
+                await self.deactivate_dance_game_moves_hook()
+            except:
+                pass
+
+            self.client.dance_hook_status = False
+        await asyncio.sleep(sleep_time)
+
+    async def read_current_dance_game_moves(self) -> str:
+        try:
+            addr = self._base_addrs["dance_game_moves"]
+        except KeyError:
+            raise HookNotActive("DanceGameMovesHook")
+
+        try:
+            moves = await self.read_bytes(addr, 8)
+        except pymem.exception.MemoryReadError:
+            raise HookNotReady("DanceGameMovesHook")
+        return moves.partition(b"\0")[0].decode().translate(self._dance_moves_transtable)
 
     # nothing to wait for in this hook
     async def activate_mouseless_cursor_hook(self):
