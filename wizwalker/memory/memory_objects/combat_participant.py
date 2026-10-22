@@ -399,10 +399,10 @@ class CombatParticipant(PropertyClass):
         await self.write_value_to_offset(416, is_minion, Primitive.bool)
 
     async def minion_level(self) -> int:
-        return await self.read_value_from_offset(916, Primitive.int32)
+        return await self.read_value_from_offset(900, Primitive.int32)
 
     async def write_minion_level(self, minion_level: int):
-        await self.write_minion_level(916, minion_level, Primitive.int32)
+        await self.write_minion_level(900, minion_level, Primitive.int32)
 
     async def is_accompany_npc(self) -> bool:
         return await self.read_value_from_offset(432, Primitive.bool)
