@@ -267,7 +267,7 @@ class QuestHook(SimpleHook):
 
 class ClientHook(SimpleHook):
     pattern = (
-        rb"\x18\x48......\x48\x8B\x7C\x24.\x48\x85\xFF\x74\x29\x8B\xC6\xF0\x0F\xC1\x47\x08\x83\xF8\x01\x75\x1D"
+        rb"\x18\x48\x8B\x9B\xC0\x01\x00\x00\x48\x8B\x7C\x24.\x48\x85\xFF\x74\x29\x8B\xC6\xF0\x0F\xC1\x47\x08\x83\xF8\x01\x75\x1D"
         rb"\x48\x8B\x07\x48\x8B\xCF\xFF\x50\x08\xF0\x0F\xC1\x77\x0C"
     )
     exports = [("current_client_addr", 8)]
@@ -460,7 +460,7 @@ class MovementTeleportHook(SimpleHook):
             b"\x48\xA3" + packed_jes_cmp +
             b"\x58" # pop rax
             b"\x40\x57" # push rdi (original bytes)
-            b"\x48\x83\xEC\x30" # sub rsp,20 (original bytes)
+            b"\x48\x83\xEC\x30" # sub rsp,30 (original bytes)
         )
         # fmt: on
 
@@ -532,12 +532,15 @@ class MovementTeleportHook(SimpleHook):
 
 
 class DropsToggleHook(SimpleHook):
-    pattern = rb"\x4C\x8B\xDC\x48\x83\xEC\x68\x48\x8B\x05...." \
-              rb"\x48\x33\xC4\x48\x89\x44\x24.\x48\x8D\x05...."
+    pattern = rb"\x48\x83\xEC\x68\x48\xC7\x44\x24\x30\xFE\xFF\xFF\xFF" \
+              rb"\x48\x8B\x05....\x48\x33\xC4\x48\x89\x44\x24." \
+              rb"\x48\x8D\x05....\x48\x89\x44\x24.\x48\x89\x54\x24." \
+              rb"\x66\x0F\x6F\x05....\xF3\x0F\x7F\x44\x24.\xC6\x44\x24.." \
+              rb"\x41\xB8\x04\x00\x00\x00"
 
-    instruction_length = 7
+    instruction_length = 13
     exports = [("disable_drops_bool", 1)]
-    noops = 2
+    noops = 8
 
     async def bytecode_generator(self, packed_exports):
         return (
@@ -548,8 +551,8 @@ class DropsToggleHook(SimpleHook):
             b"\x0F\x84\x04\x00\x00\x00" # je down 4
             b"\x48\x31\xC0" # xor rax,rax
             b"\xC3" # ret
-            b"\x4C\x8B\xDC" # mov r11,rsp (original bytes)
             b"\x48\x83\xEC\x68" # sub rsp,68 (original bytes)
+            b"\x48\xC7\x44\x24\x30\xFE\xFF\xFF\xFF" # mov qword ptr [rsp+30],FFFFFFFFFFFFFFFE (original bytes)
         )
 
 
