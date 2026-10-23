@@ -31,6 +31,7 @@ from .memory import (
     TeleportHelper,
     MovementTeleportHook,
     DropsToggleHook,
+    AhmarraAutoPuzzleHook,
 )
 from .memory.memory_objects.character_registry import DynamicCharacterRegistry
 from .memory.memory_objects.quest_client_manager import QuestClientManager
@@ -82,6 +83,7 @@ class Client:
         self._teleport_helper = TeleportHelper(self.hook_handler)
 
         self._disable_drops_bool = None
+        self._auto_puzzle_bool = None
         self._template_ids = None
         self._world_view_window = None
         self._character_registry_addr = None
@@ -601,6 +603,30 @@ class Client:
         await self.hook_handler.write_bytes(
             self._disable_drops_bool, 
             b"\x01"
+        )
+
+    async def enable_auto_puzzle(self):
+        if not self.hook_handler._check_if_hook_active(AhmarraAutoPuzzleHook):
+            raise RuntimeError("Auto puzzle not active")
+
+        if not self._auto_puzzle_bool:
+            self._auto_puzzle_bool = await self.hook_handler.read_auto_puzzle_bool()
+
+        await self.hook_handler.write_bytes(
+            self._auto_puzzle_bool,
+            b"\x01"
+        )
+
+    async def disable_auto_puzzle(self):
+        if not self.hook_handler._check_if_hook_active(AhmarraAutoPuzzleHook):
+            raise RuntimeError("Auto puzzle not active")
+
+        if not self._auto_puzzle_bool:
+            self._auto_puzzle_bool = await self.hook_handler.read_auto_puzzle_bool()
+
+        await self.hook_handler.write_bytes(
+            self._auto_puzzle_bool,
+            b"\x00"
         )
 
     async def _get_je_instruction_forward_backwards(self):

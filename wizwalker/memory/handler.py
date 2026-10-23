@@ -22,6 +22,7 @@ from .hooks import (
     MovementTeleportHook,
     DropsToggleHook,
     DanceGameMovesHook,
+    AhmarraAutoPuzzleHook,
     MemoryHook
 )
 from .memory_reader import MemoryReader, Primitive
@@ -197,6 +198,7 @@ class HookHandler(MemoryReader):
         await self.activate_render_context_hook(wait_for_ready=False)
         await self.activate_movement_teleport_hook(wait_for_ready=False)
         await self.activate_drops_toggle_hook(wait_for_ready=False)
+        await self.activate_auto_puzzle_hook(wait_for_ready=False)
 
         if wait_for_ready:
             wait_tasks = []
@@ -574,6 +576,39 @@ class HookHandler(MemoryReader):
 
         if addr is None:
             raise HookNotActive("Drops toggle")
+
+        return addr
+
+    async def activate_auto_puzzle_hook(
+        self, *, wait_for_ready: bool = False, timeout: float = None
+    ):
+
+        if self._check_if_hook_active(AhmarraAutoPuzzleHook):
+            raise HookAlreadyActivated("Auto puzzle")
+
+        await self._check_for_autobot()
+
+        auto_puzzle_hook = AhmarraAutoPuzzleHook(self)
+        await auto_puzzle_hook.hook()
+
+        self._active_hooks[AhmarraAutoPuzzleHook] = auto_puzzle_hook
+        self._base_addrs["auto_puzzle_bool"] = auto_puzzle_hook.auto_puzzle_bool
+
+    async def deactivate_auto_puzzle_hook(self):
+
+        if not self._check_if_hook_active(AhmarraAutoPuzzleHook):
+            raise HookNotActive("Auto puzzle")
+
+        auto_puzzle_hook = self._active_hooks.pop(AhmarraAutoPuzzleHook)
+        await auto_puzzle_hook.unhook()
+
+        del self._base_addrs["auto_puzzle_bool"]
+
+    async def read_auto_puzzle_bool(self) -> int:
+        addr = self._base_addrs.get("auto_puzzle_bool")
+
+        if addr is None:
+            raise HookNotActive("Auto puzzle")
 
         return addr
 

@@ -553,6 +553,64 @@ class DropsToggleHook(SimpleHook):
         )
 
 
+class AhmarraAutoPuzzleHook(SimpleHook):
+    pattern = rb"\xE8....\x8B\xD3\x48\x8B\xC8\xE8....\x45\x33\xC0\x48\x8D\x55." \
+              rb"\x48\x8B\x0D....\xE8....\x90\x48\x8D\x4D." \
+              rb"\xE8....\x90\x48\x8D\x05....\x48\x89\x45."
+
+    instruction_length = 5
+    exports = [("auto_puzzle_bool", 1)]
+    noops = 0
+
+    async def bytecode_generator(self, packed_exports):
+        return (
+            b"\x50" # push rax
+            b"\xA0" + packed_exports[0][1] + # mov al,[auto_puzzle_bool]
+            b"\x84\xC0" # test al,al
+            b"\x58" # pop rax
+            b"\x0F\x84\x08\x00\x00\x00" # je down 8
+            b"\xBA\x01\x00\x00\x00" # mov edx,1
+            b"\xE9\x02\x00\x00\x00" # jmp down 2
+            b"\x8B\xD3" # mov edx,ebx (original bytes)
+            b"\x48\x8B\xC8" # mov rcx,rax (original bytes)
+        )
+
+    async def hook(self):
+        """
+        Writes jump_bytecode to jump address and hook bytecode to hook address
+        """
+        pattern, module = await self.get_pattern()
+
+        offset = 5
+
+        self.jump_address = await self.get_jump_address(pattern, module=module) + offset
+        self.hook_address = await self.get_hook_address(50)
+
+        logger.debug(f"Got hook address {self.hook_address} in {type(self)}")
+        logger.debug(f"Got jump address {self.jump_address} in {type(self)}")
+
+        self.hook_bytecode = await self.get_hook_bytecode()
+        self.jump_bytecode = await self.get_jump_bytecode()
+
+        logger.debug(f"Got hook bytecode {self.hook_bytecode} in {type(self)}")
+        logger.debug(f"Got jump bytecode {self.jump_bytecode} in {type(self)}")
+
+        self.jump_original_bytecode = await self.read_bytes(
+            self.jump_address, len(self.jump_bytecode)
+        )
+
+        logger.debug(
+            f"Got jump original bytecode {self.jump_original_bytecode} in {type(self)}"
+        )
+
+        await self.prehook()
+
+        await self.write_bytes(self.hook_address, self.hook_bytecode)
+        await self.write_bytes(self.jump_address, self.jump_bytecode)
+
+        await self.posthook()
+
+
 # TODO: fix this hacky class
 class User32GetClassInfoBaseHook(AutoBotBaseHook):
     """
