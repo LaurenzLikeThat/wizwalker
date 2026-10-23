@@ -568,7 +568,7 @@ class AhmarraAutoPuzzleHook(SimpleHook):
             b"\xA0" + packed_exports[0][1] + # mov al,[auto_puzzle_bool]
             b"\x84\xC0" # test al,al
             b"\x58" # pop rax
-            b"\x0F\x84\x08\x00\x00\x00" # je down 8
+            b"\x0F\x84\x0A\x00\x00\x00" # je down 10
             b"\xBA\x01\x00\x00\x00" # mov edx,1
             b"\xE9\x02\x00\x00\x00" # jmp down 2
             b"\x8B\xD3" # mov edx,ebx (original bytes)
